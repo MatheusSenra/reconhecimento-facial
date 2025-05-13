@@ -1,2 +1,2 @@
-# Ignorar embeddings com dados de rostos
 embeddings/
+__pycache__/
