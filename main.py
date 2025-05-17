@@ -1,14 +1,26 @@
-import base64
-import io
 import os
+import io
+import base64
 
 import faiss
-import face_recognition
-import numpy as np
 import uvicorn
-from fastapi import FastAPI, Request
-from fastapi.middleware.cors import CORSMiddleware
+import numpy as np
+import face_recognition
+
+from fastapi import (
+    FastAPI, Request, Body, Depends, HTTPException
+)
 from fastapi.responses import JSONResponse
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.security import OAuth2PasswordRequestForm
+
+from pydantic import BaseModel
+
+from auth import authenticate_user, create_access_token, get_current_user
+
+class LoginData(BaseModel):
+    username: str
+    password: str
 
 EMBEDDINGS_DIR = "embeddings"
 os.makedirs(EMBEDDINGS_DIR, exist_ok=True)
@@ -58,8 +70,16 @@ def startup_event():
     if embeddings:
         construir_indice(embeddings)
 
+@app.post("/token")
+async def login(data: LoginData):
+    user = authenticate_user(data.username, data.password)
+    if not user:
+        raise HTTPException(status_code=401, detail="Usuário ou senha inválidos")
+    token = create_access_token(data={"sub": user["username"]})
+    return {"access_token": token, "token_type": "bearer"}
+
 @app.post("/reconhecer")
-async def reconhecer(request: Request):
+async def reconhecer(request: Request, current_user: dict = Depends(get_current_user)):
     try:
         data = await request.json()
         imagem_base64 = data.get("foto")
@@ -94,7 +114,7 @@ async def reconhecer(request: Request):
         return JSONResponse(content={"erro": str(e)}, status_code=500)
 
 @app.post("/cadastrar")
-async def cadastrar(request: Request):
+async def cadastrar(request: Request, current_user: dict = Depends(get_current_user)):
     try:
         data = await request.json()
         imagem_base64 = data.get("foto")

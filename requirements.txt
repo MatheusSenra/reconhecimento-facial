@@ -4,3 +4,5 @@ face_recognition
 numpy
 python-multipart
 faiss-cpu
+python-jose[cryptography]
+passlib[bcrypt]
